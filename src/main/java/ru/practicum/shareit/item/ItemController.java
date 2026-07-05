@@ -13,9 +13,9 @@ import java.util.List;
 @RequestMapping("/items")
 @RequiredArgsConstructor
 public class ItemController {
-    
+
     private final ItemService itemService;
-    
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ItemDto createItem(@Valid @RequestBody ItemDto itemDto,
@@ -25,7 +25,7 @@ public class ItemController {
         }
         return itemService.createItem(itemDto, ownerId);
     }
-    
+
     @PatchMapping("/{itemId}")
     public ItemDto updateItem(@PathVariable Long itemId,
                               @Valid @RequestBody ItemDto itemDto,
@@ -35,7 +35,7 @@ public class ItemController {
         }
         return itemService.updateItem(itemId, itemDto, ownerId);
     }
-    
+
     @GetMapping("/{itemId}")
     public ItemDto getItemById(@PathVariable Long itemId,
                                @RequestHeader(value = "X-Sharer-User-Id", required = false) Long userId) {
@@ -44,7 +44,7 @@ public class ItemController {
         }
         return itemService.getItemById(itemId);
     }
-    
+
     @GetMapping
     public List<ItemDto> getItemsByOwner(@RequestHeader(value = "X-Sharer-User-Id", required = false) Long ownerId) {
         if (ownerId == null) {
@@ -52,7 +52,7 @@ public class ItemController {
         }
         return itemService.getItemsByOwner(ownerId);
     }
-    
+
     @GetMapping("/search")
     public List<ItemDto> searchItems(@RequestParam String text,
                                      @RequestHeader(value = "X-Sharer-User-Id", required = false) Long userId) {

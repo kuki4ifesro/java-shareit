@@ -13,10 +13,10 @@ import java.util.Map;
 
 @Service
 public class UserServiceImpl implements UserService {
-    
+
     private final Map<Long, User> users = new HashMap<>();
     private Long idCounter = 1L;
-    
+
     @Override
     public UserDto createUser(UserDto userDto) {
         validateEmailUnique(userDto.getEmail());
@@ -25,18 +25,18 @@ public class UserServiceImpl implements UserService {
         users.put(user.getId(), user);
         return UserMapper.toUserDto(user);
     }
-    
+
     @Override
     public UserDto updateUser(Long userId, UserDto userDto) {
         User existingUser = users.get(userId);
         if (existingUser == null) {
             throw new NotFoundException("User not found with id: " + userId);
         }
-        
+
         if (userDto.getName() != null && !userDto.getName().isBlank()) {
             existingUser.setName(userDto.getName());
         }
-        
+
         if (userDto.getEmail() != null && !userDto.getEmail().isBlank()) {
             if (!existingUser.getEmail().equals(userDto.getEmail())) {
                 validateEmailUnique(userDto.getEmail());
@@ -45,10 +45,10 @@ public class UserServiceImpl implements UserService {
         } else if (userDto.getEmail() != null && userDto.getEmail().isBlank()) {
             throw new ValidationException("Email cannot be blank");
         }
-        
+
         return UserMapper.toUserDto(existingUser);
     }
-    
+
     @Override
     public UserDto getUserById(Long userId) {
         User user = users.get(userId);
@@ -57,14 +57,14 @@ public class UserServiceImpl implements UserService {
         }
         return UserMapper.toUserDto(user);
     }
-    
+
     @Override
     public List<UserDto> getAllUsers() {
         return new ArrayList<>(users.values().stream()
                 .map(UserMapper::toUserDto)
                 .toList());
     }
-    
+
     @Override
     public void deleteUser(Long userId) {
         User user = users.remove(userId);
@@ -72,7 +72,7 @@ public class UserServiceImpl implements UserService {
             throw new NotFoundException("User not found with id: " + userId);
         }
     }
-    
+
     private void validateEmailUnique(String email) {
         for (User user : users.values()) {
             if (user.getEmail().equals(email)) {
