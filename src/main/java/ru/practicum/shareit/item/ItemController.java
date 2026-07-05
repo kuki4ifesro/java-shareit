@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.exception.MissingHeaderException;
 import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.dto.ItemUpdateDto;
 
 import java.util.List;
 
@@ -28,7 +29,7 @@ public class ItemController {
 
     @PatchMapping("/{itemId}")
     public ItemDto updateItem(@PathVariable Long itemId,
-                              @Valid @RequestBody ItemDto itemDto,
+                              @RequestBody ItemUpdateDto itemDto,
                               @RequestHeader(value = "X-Sharer-User-Id", required = false) Long ownerId) {
         if (ownerId == null) {
             throw new MissingHeaderException("X-Sharer-User-Id header is required");
