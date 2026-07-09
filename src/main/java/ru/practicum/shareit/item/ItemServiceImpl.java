@@ -2,6 +2,7 @@ package ru.practicum.shareit.item;
 
 import org.springframework.stereotype.Service;
 import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.item.dto.ItemCreateDto;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.dto.ItemUpdateDto;
 import ru.practicum.shareit.item.model.Item;
@@ -25,12 +26,8 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
-    public ItemDto createItem(ItemDto itemDto, Long ownerId) {
-        try {
-            userService.getUserById(ownerId);
-        } catch (NotFoundException e) {
-            throw new NotFoundException("User not found with id: " + ownerId);
-        }
+    public ItemDto createItem(ItemCreateDto itemDto, Long ownerId) {
+        userService.getUserById(ownerId);
         Item item = ItemMapper.toItem(itemDto, ownerId);
         item.setId(idCounter++);
         items.put(item.getId(), item);

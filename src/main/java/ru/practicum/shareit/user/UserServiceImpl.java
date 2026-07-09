@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
+import ru.practicum.shareit.user.dto.UserCreateDto;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.dto.UserUpdateDto;
 
@@ -19,7 +20,7 @@ public class UserServiceImpl implements UserService {
     private Long idCounter = 1L;
 
     @Override
-    public UserDto createUser(UserDto userDto) {
+    public UserDto createUser(UserCreateDto userDto) {
         validateEmailUnique(userDto.getEmail());
         User user = UserMapper.toUser(userDto);
         user.setId(idCounter++);
@@ -68,10 +69,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void deleteUser(Long userId) {
-        User user = users.remove(userId);
-        if (user == null) {
-            throw new NotFoundException("User not found with id: " + userId);
-        }
+        users.remove(userId);
     }
 
     private void validateEmailUnique(String email) {
