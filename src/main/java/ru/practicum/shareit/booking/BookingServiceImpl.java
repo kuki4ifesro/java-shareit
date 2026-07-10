@@ -93,15 +93,31 @@ public class BookingServiceImpl implements BookingService {
         BookingStatus status = parseState(state);
         LocalDateTime now = LocalDateTime.now();
 
-        return switch (status) {
-            case ALL -> bookingRepository.findByBookerIdOrderByStartDesc(bookerId);
-            case CURRENT -> bookingRepository.findByBookerIdAndStartBeforeAndEndAfterOrderByStartDesc(bookerId, now, now);
-            case PAST -> bookingRepository.findByBookerIdAndEndBeforeOrderByStartDesc(bookerId, now);
-            case FUTURE -> bookingRepository.findByBookerIdAndStartAfterOrderByStartDesc(bookerId, now);
-            case WAITING -> bookingRepository.findByBookerIdAndStatusOrderByStartDesc(bookerId, BookingStatus.WAITING);
-            case REJECTED -> bookingRepository.findByBookerIdAndStatusOrderByStartDesc(bookerId, BookingStatus.REJECTED);
-            default -> bookingRepository.findByBookerIdOrderByStartDesc(bookerId);
-        }.stream().map(this::toResponseDto).toList();
+        List<Booking> bookings;
+        switch (status) {
+            case ALL:
+                bookings = bookingRepository.findByBookerIdOrderByStartDesc(bookerId);
+                break;
+            case CURRENT:
+                bookings = bookingRepository.findByBookerIdAndStartBeforeAndEndAfterOrderByStartDesc(bookerId, now, now);
+                break;
+            case PAST:
+                bookings = bookingRepository.findByBookerIdAndEndBeforeOrderByStartDesc(bookerId, now);
+                break;
+            case FUTURE:
+                bookings = bookingRepository.findByBookerIdAndStartAfterOrderByStartDesc(bookerId, now);
+                break;
+            case WAITING:
+                bookings = bookingRepository.findByBookerIdAndStatusOrderByStartDesc(bookerId, BookingStatus.WAITING);
+                break;
+            case REJECTED:
+                bookings = bookingRepository.findByBookerIdAndStatusOrderByStartDesc(bookerId, BookingStatus.REJECTED);
+                break;
+            default:
+                bookings = bookingRepository.findByBookerIdOrderByStartDesc(bookerId);
+        }
+
+        return bookings.stream().map(this::toResponseDto).toList();
     }
 
     @Override
@@ -110,15 +126,29 @@ public class BookingServiceImpl implements BookingService {
         BookingStatus status = parseState(state);
         LocalDateTime now = LocalDateTime.now();
 
-        List<Booking> bookings = switch (status) {
-            case ALL -> bookingRepository.findAllByOwnerIdOrderByStartDesc(ownerId);
-            case CURRENT -> bookingRepository.findAllByOwnerIdAndStartBeforeAndEndAfterOrderByStartDesc(ownerId, now, now);
-            case PAST -> bookingRepository.findAllByOwnerIdAndEndBeforeOrderByStartDesc(ownerId, now);
-            case FUTURE -> bookingRepository.findAllByOwnerIdAndStartAfterOrderByStartDesc(ownerId, now);
-            case WAITING -> bookingRepository.findAllByOwnerIdAndStatusOrderByStartDesc(ownerId, BookingStatus.WAITING);
-            case REJECTED -> bookingRepository.findAllByOwnerIdAndStatusOrderByStartDesc(ownerId, BookingStatus.REJECTED);
-            default -> bookingRepository.findAllByOwnerIdOrderByStartDesc(ownerId);
-        };
+        List<Booking> bookings;
+        switch (status) {
+            case ALL:
+                bookings = bookingRepository.findAllByOwnerIdOrderByStartDesc(ownerId);
+                break;
+            case CURRENT:
+                bookings = bookingRepository.findAllByOwnerIdAndStartBeforeAndEndAfterOrderByStartDesc(ownerId, now, now);
+                break;
+            case PAST:
+                bookings = bookingRepository.findAllByOwnerIdAndEndBeforeOrderByStartDesc(ownerId, now);
+                break;
+            case FUTURE:
+                bookings = bookingRepository.findAllByOwnerIdAndStartAfterOrderByStartDesc(ownerId, now);
+                break;
+            case WAITING:
+                bookings = bookingRepository.findAllByOwnerIdAndStatusOrderByStartDesc(ownerId, BookingStatus.WAITING);
+                break;
+            case REJECTED:
+                bookings = bookingRepository.findAllByOwnerIdAndStatusOrderByStartDesc(ownerId, BookingStatus.REJECTED);
+                break;
+            default:
+                bookings = bookingRepository.findAllByOwnerIdOrderByStartDesc(ownerId);
+        }
 
         return bookings.stream().map(this::toResponseDto).toList();
     }
@@ -135,13 +165,25 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private BookingResponseDto toResponseDto(Booking booking) {
+        Item item = itemRepository.findById(booking.getItemId())
+                .orElseThrow(() -> new NotFoundException("Item not found with id: " + booking.getItemId()));
+
+        BookingResponseDto.BookingItem bookingItem = new BookingResponseDto.BookingItem(
+                item.getId(),
+                item.getName()
+        );
+
+        BookingResponseDto.Booker booker = new BookingResponseDto.Booker(
+                booking.getBookerId()
+        );
+
         return new BookingResponseDto(
                 booking.getId(),
                 booking.getStart(),
                 booking.getEnd(),
                 booking.getStatus().name(),
-                booking.getItemId(),
-                booking.getBookerId()
+                bookingItem,
+                booker
         );
     }
 }

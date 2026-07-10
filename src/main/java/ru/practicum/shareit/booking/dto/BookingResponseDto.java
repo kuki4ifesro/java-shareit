@@ -14,6 +14,21 @@ public class BookingResponseDto {
     private LocalDateTime start;
     private LocalDateTime end;
     private String status;
-    private Long itemId;
-    private Long bookerId;
+    private BookingItem item;
+    private Booker booker;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BookingItem {
+        private Long id;
+        private String name;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Booker {
+        private Long id;
+    }
 }
