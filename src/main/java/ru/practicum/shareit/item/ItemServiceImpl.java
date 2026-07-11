@@ -64,13 +64,34 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
-    public ItemDto getItemById(Long itemId) {
+    public ItemDto getItemById(Long itemId, Long userId) {
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
         ItemDto itemDto = ItemMapper.toItemDto(item);
         itemDto.setComments(getCommentsForItem(itemId));
 
+        if (item.getOwnerId().equals(userId)) {
+            setBookingDates(itemDto, itemId);
+        }
+
+        return itemDto;
+    }
+
+    @Override
+    public List<ItemDto> getItemsByOwner(Long ownerId) {
+        return itemRepository.findByOwnerId(ownerId).stream()
+                .map(item -> {
+                    ItemDto itemDto = ItemMapper.toItemDto(item);
+                    itemDto.setComments(getCommentsForItem(item.getId()));
+                    setBookingDates(itemDto, item.getId());
+                    return itemDto;
+                })
+                .toList();
+    }
+
+    private void setBookingDates(ItemDto itemDto, Long itemId) {
         LocalDateTime now = LocalDateTime.now();
+
         List<Booking> lastBookings = bookingRepository.findLastBookingByItemId(itemId, now);
         if (!lastBookings.isEmpty()) {
             Booking last = lastBookings.get(0);
@@ -92,43 +113,6 @@ public class ItemServiceImpl implements ItemService {
                     next.getEnd()
             ));
         }
-
-        return itemDto;
-    }
-
-    @Override
-    public List<ItemDto> getItemsByOwner(Long ownerId) {
-        LocalDateTime now = LocalDateTime.now();
-        return itemRepository.findByOwnerId(ownerId).stream()
-                .map(item -> {
-                    ItemDto itemDto = ItemMapper.toItemDto(item);
-                    itemDto.setComments(getCommentsForItem(item.getId()));
-
-                    List<Booking> lastBookings = bookingRepository.findLastBookingByItemId(item.getId(), now);
-                    if (!lastBookings.isEmpty()) {
-                        Booking last = lastBookings.get(0);
-                        itemDto.setLastBooking(new ItemDto.BookingShort(
-                                last.getId(),
-                                last.getBookerId(),
-                                last.getStart(),
-                                last.getEnd()
-                        ));
-                    }
-
-                    List<Booking> nextBookings = bookingRepository.findNextBookingByItemId(item.getId(), now);
-                    if (!nextBookings.isEmpty()) {
-                        Booking next = nextBookings.get(0);
-                        itemDto.setNextBooking(new ItemDto.BookingShort(
-                                next.getId(),
-                                next.getBookerId(),
-                                next.getStart(),
-                                next.getEnd()
-                        ));
-                    }
-
-                    return itemDto;
-                })
-                .toList();
     }
 
     @Override
@@ -137,8 +121,7 @@ public class ItemServiceImpl implements ItemService {
             return List.of();
         }
 
-        return itemRepository.findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCaseAndAvailableTrue(
-                text, text).stream()
+        return itemRepository.searchAvailableByText(text).stream()
                 .map(ItemMapper::toItemDto)
                 .toList();
     }

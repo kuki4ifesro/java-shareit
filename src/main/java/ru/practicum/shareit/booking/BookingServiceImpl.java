@@ -56,8 +56,9 @@ public class BookingServiceImpl implements BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new NotFoundException("Booking not found with id: " + bookingId));
 
-        Item item = itemRepository.findById(booking.getItemId())
-                .orElseThrow(() -> new NotFoundException("Item not found with id: " + booking.getItemId()));
+        Long itemId = booking.getItemId();
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
 
         if (!item.getOwnerId().equals(ownerId)) {
             throw new ValidationException("Only owner can approve booking");
@@ -90,11 +91,11 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public List<BookingResponseDto> getBookingsByBooker(Long bookerId, String state) {
         userService.getUserById(bookerId);
-        BookingStatus status = parseState(state);
+        BookingState bookingState = parseState(state);
         LocalDateTime now = LocalDateTime.now();
 
         List<Booking> bookings;
-        switch (status) {
+        switch (bookingState) {
             case ALL:
                 bookings = bookingRepository.findByBookerIdOrderByStartDesc(bookerId);
                 break;
@@ -123,11 +124,11 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public List<BookingResponseDto> getBookingsByOwner(Long ownerId, String state) {
         userService.getUserById(ownerId);
-        BookingStatus status = parseState(state);
+        BookingState bookingState = parseState(state);
         LocalDateTime now = LocalDateTime.now();
 
         List<Booking> bookings;
-        switch (status) {
+        switch (bookingState) {
             case ALL:
                 bookings = bookingRepository.findAllByOwnerIdOrderByStartDesc(ownerId);
                 break;
@@ -153,12 +154,12 @@ public class BookingServiceImpl implements BookingService {
         return bookings.stream().map(this::toResponseDto).toList();
     }
 
-    private BookingStatus parseState(String state) {
+    private BookingState parseState(String state) {
         if (state == null) {
-            return BookingStatus.ALL;
+            return BookingState.ALL;
         }
         try {
-            return BookingStatus.valueOf(state.toUpperCase());
+            return BookingState.valueOf(state.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new ValidationException("Unknown state: " + state);
         }
@@ -167,13 +168,14 @@ public class BookingServiceImpl implements BookingService {
     private BookingResponseDto toResponseDto(Booking booking) {
         Item item = itemRepository.findById(booking.getItemId())
                 .orElseThrow(() -> new NotFoundException("Item not found with id: " + booking.getItemId()));
+        String bookerName = userService.getUserById(booking.getBookerId()).getName();
 
         return new BookingResponseDto(
                 booking.getId(),
                 booking.getStart(),
                 booking.getEnd(),
                 booking.getStatus().name(),
-                new BookingResponseDto.BookerItem(booking.getBookerId(), null),
+                new BookingResponseDto.BookerItem(booking.getBookerId(), bookerName),
                 new BookingResponseDto.BookerItem(item.getId(), item.getName())
         );
     }

@@ -20,7 +20,7 @@ public class Booking {
     @Column(name = "start", nullable = false)
     private LocalDateTime start;
 
-    @Column(name = "end", nullable = false)
+    @Column(name = "`end`", nullable = false)
     private LocalDateTime end;
 
     @Enumerated(EnumType.STRING)
@@ -37,10 +37,6 @@ public class Booking {
         WAITING,
         APPROVED,
         REJECTED,
-        CANCELLED,
-        CURRENT,
-        PAST,
-        FUTURE,
-        ALL
+        CANCELLED
     }
 }
