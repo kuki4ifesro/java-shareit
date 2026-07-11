@@ -168,22 +168,13 @@ public class BookingServiceImpl implements BookingService {
         Item item = itemRepository.findById(booking.getItemId())
                 .orElseThrow(() -> new NotFoundException("Item not found with id: " + booking.getItemId()));
 
-        BookingResponseDto.BookingItem bookingItem = new BookingResponseDto.BookingItem(
-                item.getId(),
-                item.getName()
-        );
-
-        BookingResponseDto.Booker booker = new BookingResponseDto.Booker(
-                booking.getBookerId()
-        );
-
         return new BookingResponseDto(
                 booking.getId(),
                 booking.getStart(),
                 booking.getEnd(),
                 booking.getStatus().name(),
-                bookingItem,
-                booker
+                new BookingResponseDto.BookerItem(booking.getBookerId(), null),
+                new BookingResponseDto.BookerItem(item.getId(), item.getName())
         );
     }
 }

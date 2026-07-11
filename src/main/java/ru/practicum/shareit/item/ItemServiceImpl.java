@@ -69,15 +69,63 @@ public class ItemServiceImpl implements ItemService {
                 .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
         ItemDto itemDto = ItemMapper.toItemDto(item);
         itemDto.setComments(getCommentsForItem(itemId));
+
+        LocalDateTime now = LocalDateTime.now();
+        List<Booking> lastBookings = bookingRepository.findLastBookingByItemId(itemId, now);
+        if (!lastBookings.isEmpty()) {
+            Booking last = lastBookings.get(0);
+            itemDto.setLastBooking(new ItemDto.BookingShort(
+                    last.getId(),
+                    last.getBookerId(),
+                    last.getStart(),
+                    last.getEnd()
+            ));
+        }
+
+        List<Booking> nextBookings = bookingRepository.findNextBookingByItemId(itemId, now);
+        if (!nextBookings.isEmpty()) {
+            Booking next = nextBookings.get(0);
+            itemDto.setNextBooking(new ItemDto.BookingShort(
+                    next.getId(),
+                    next.getBookerId(),
+                    next.getStart(),
+                    next.getEnd()
+            ));
+        }
+
         return itemDto;
     }
 
     @Override
     public List<ItemDto> getItemsByOwner(Long ownerId) {
+        LocalDateTime now = LocalDateTime.now();
         return itemRepository.findByOwnerId(ownerId).stream()
                 .map(item -> {
                     ItemDto itemDto = ItemMapper.toItemDto(item);
                     itemDto.setComments(getCommentsForItem(item.getId()));
+
+                    List<Booking> lastBookings = bookingRepository.findLastBookingByItemId(item.getId(), now);
+                    if (!lastBookings.isEmpty()) {
+                        Booking last = lastBookings.get(0);
+                        itemDto.setLastBooking(new ItemDto.BookingShort(
+                                last.getId(),
+                                last.getBookerId(),
+                                last.getStart(),
+                                last.getEnd()
+                        ));
+                    }
+
+                    List<Booking> nextBookings = bookingRepository.findNextBookingByItemId(item.getId(), now);
+                    if (!nextBookings.isEmpty()) {
+                        Booking next = nextBookings.get(0);
+                        itemDto.setNextBooking(new ItemDto.BookingShort(
+                                next.getId(),
+                                next.getBookerId(),
+                                next.getStart(),
+                                next.getEnd()
+                        ));
+                    }
+
                     return itemDto;
                 })
                 .toList();
@@ -101,11 +149,12 @@ public class ItemServiceImpl implements ItemService {
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
 
+        LocalDateTime now = LocalDateTime.now();
         List<Booking> bookings = bookingRepository.findByBookerIdAndItemIdAndStatusAndEndBeforeOrderByStartDesc(
-                userId, itemId, BookingStatus.APPROVED, LocalDateTime.now());
+                userId, itemId, BookingStatus.APPROVED, now);
 
         if (bookings.isEmpty()) {
-            throw new ValidationException("User has not booked this item");
+            throw new ValidationException("User has not completed a booking for this item");
         }
 
         Comment comment = new Comment();
