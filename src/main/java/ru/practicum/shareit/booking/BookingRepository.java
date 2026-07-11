@@ -30,7 +30,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findAllByOwnerIdOrderByStartDesc(Long ownerId);
 
     @Query("SELECT b FROM Booking b JOIN Item i ON b.itemId = i.id WHERE i.ownerId = :ownerId AND b.start < :now AND b.end > :now ORDER BY b.start DESC")
-    List<Booking> findAllByOwnerIdAndStartBeforeAndEndAfterOrderByStartDesc(Long ownerId, LocalDateTime now, LocalDateTime now2);
+    List<Booking> findAllByOwnerIdAndStartBeforeAndEndAfterOrderByStartDesc(Long ownerId, LocalDateTime now);
 
     @Query("SELECT b FROM Booking b JOIN Item i ON b.itemId = i.id WHERE i.ownerId = :ownerId AND b.end < :now ORDER BY b.start DESC")
     List<Booking> findAllByOwnerIdAndEndBeforeOrderByStartDesc(Long ownerId, LocalDateTime now);
@@ -42,7 +42,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findAllByOwnerIdAndStatusOrderByStartDesc(Long ownerId, BookingStatus status);
 
     @Query("SELECT b FROM Booking b WHERE b.bookerId = :bookerId AND b.start < :now AND b.end > :now ORDER BY b.start DESC")
-    List<Booking> findByBookerIdAndStartBeforeAndEndAfterOrderByStartDesc(Long bookerId, LocalDateTime now, LocalDateTime now2);
+    List<Booking> findByBookerIdAndStartBeforeAndEndAfterOrderByStartDesc(Long bookerId, LocalDateTime now);
 
     @Query("SELECT b FROM Booking b WHERE b.bookerId = :bookerId AND b.itemId = :itemId AND b.status = :status AND b.end < :now ORDER BY b.start DESC")
     List<Booking> findByBookerIdAndItemIdAndStatusAndEndBeforeOrderByStartDesc(Long bookerId, Long itemId, BookingStatus status, LocalDateTime now);
