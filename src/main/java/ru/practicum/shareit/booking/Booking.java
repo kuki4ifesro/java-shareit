@@ -32,11 +32,4 @@ public class Booking {
 
     @Column(name = "booker_id", nullable = false)
     private Long bookerId;
-
-    public enum BookingStatus {
-        WAITING,
-        APPROVED,
-        REJECTED,
-        CANCELLED
-    }
 }

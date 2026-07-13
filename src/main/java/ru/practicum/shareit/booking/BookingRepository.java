@@ -2,8 +2,8 @@ package ru.practicum.shareit.booking;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import ru.practicum.shareit.booking.Booking.BookingStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -47,9 +47,12 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query("SELECT b FROM Booking b WHERE b.bookerId = :bookerId AND b.itemId = :itemId AND b.status = :status AND b.end < :now ORDER BY b.start DESC")
     List<Booking> findByBookerIdAndItemIdAndStatusAndEndBeforeOrderByStartDesc(Long bookerId, Long itemId, BookingStatus status, LocalDateTime now);
 
-    @Query("SELECT b FROM Booking b WHERE b.itemId = :itemId AND b.status = 'APPROVED' AND b.end < :now ORDER BY b.end DESC")
-    List<Booking> findLastBookingByItemId(Long itemId, LocalDateTime now);
+    @Query("SELECT COUNT(b) > 0 FROM Booking b WHERE b.itemId = :itemId "
+            + "AND b.status IN :statuses AND b.start < :end AND b.end > :start")
+    boolean existsOverlappingBooking(@Param("itemId") Long itemId,
+                                      @Param("start") LocalDateTime start,
+                                      @Param("end") LocalDateTime end,
+                                      @Param("statuses") List<BookingStatus> statuses);
 
-    @Query("SELECT b FROM Booking b WHERE b.itemId = :itemId AND b.status = 'APPROVED' AND b.start > :now ORDER BY b.start ASC")
-    List<Booking> findNextBookingByItemId(Long itemId, LocalDateTime now);
+    List<Booking> findByItemIdInAndStatusOrderByStartAsc(List<Long> itemIds, BookingStatus status);
 }

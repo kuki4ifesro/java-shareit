@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.practicum.shareit.booking.Booking;
 import ru.practicum.shareit.booking.BookingRepository;
-import ru.practicum.shareit.booking.Booking.BookingStatus;
+import ru.practicum.shareit.booking.BookingStatus;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.dto.CommentCreateDto;
@@ -18,7 +18,10 @@ import ru.practicum.shareit.user.UserRepository;
 import ru.practicum.shareit.user.UserService;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -68,10 +71,14 @@ public class ItemServiceImpl implements ItemService {
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
         ItemDto itemDto = ItemMapper.toItemDto(item);
-        itemDto.setComments(getCommentsForItem(itemId));
+
+        List<Comment> comments = commentRepository.findByItemIdOrderByCreatedDesc(itemId);
+        itemDto.setComments(toCommentResponseDtos(comments));
 
         if (item.getOwnerId().equals(userId)) {
-            setBookingDates(itemDto, itemId);
+            List<Booking> itemBookings = bookingRepository.findByItemIdInAndStatusOrderByStartAsc(
+                    List.of(itemId), BookingStatus.APPROVED);
+            applyBookingDates(itemDto, itemBookings, LocalDateTime.now());
         }
 
         return itemDto;
@@ -79,40 +86,44 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public List<ItemDto> getItemsByOwner(Long ownerId) {
-        return itemRepository.findByOwnerId(ownerId).stream()
+        List<Item> items = itemRepository.findByOwnerId(ownerId);
+        if (items.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> itemIds = items.stream().map(Item::getId).toList();
+
+        Map<Long, List<CommentResponseDto>> commentsByItem = groupCommentsByItem(
+                commentRepository.findByItemIdInOrderByCreatedDesc(itemIds));
+
+        Map<Long, List<Booking>> bookingsByItem = bookingRepository
+                .findByItemIdInAndStatusOrderByStartAsc(itemIds, BookingStatus.APPROVED).stream()
+                .collect(Collectors.groupingBy(Booking::getItemId));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        return items.stream()
                 .map(item -> {
                     ItemDto itemDto = ItemMapper.toItemDto(item);
-                    itemDto.setComments(getCommentsForItem(item.getId()));
-                    setBookingDates(itemDto, item.getId());
+                    itemDto.setComments(commentsByItem.getOrDefault(item.getId(), List.of()));
+                    applyBookingDates(itemDto, bookingsByItem.getOrDefault(item.getId(), List.of()), now);
                     return itemDto;
                 })
                 .toList();
     }
 
-    private void setBookingDates(ItemDto itemDto, Long itemId) {
-        LocalDateTime now = LocalDateTime.now();
+    private void applyBookingDates(ItemDto itemDto, List<Booking> itemBookings, LocalDateTime now) {
+        itemBookings.stream()
+                .filter(b -> b.getEnd().isBefore(now))
+                .max(Comparator.comparing(Booking::getEnd))
+                .ifPresent(last -> itemDto.setLastBooking(new ItemDto.BookingShort(
+                        last.getId(), last.getBookerId(), last.getStart(), last.getEnd())));
 
-        List<Booking> lastBookings = bookingRepository.findLastBookingByItemId(itemId, now);
-        if (!lastBookings.isEmpty()) {
-            Booking last = lastBookings.get(0);
-            itemDto.setLastBooking(new ItemDto.BookingShort(
-                    last.getId(),
-                    last.getBookerId(),
-                    last.getStart(),
-                    last.getEnd()
-            ));
-        }
-
-        List<Booking> nextBookings = bookingRepository.findNextBookingByItemId(itemId, now);
-        if (!nextBookings.isEmpty()) {
-            Booking next = nextBookings.get(0);
-            itemDto.setNextBooking(new ItemDto.BookingShort(
-                    next.getId(),
-                    next.getBookerId(),
-                    next.getStart(),
-                    next.getEnd()
-            ));
-        }
+        itemBookings.stream()
+                .filter(b -> b.getStart().isAfter(now))
+                .min(Comparator.comparing(Booking::getStart))
+                .ifPresent(next -> itemDto.setNextBooking(new ItemDto.BookingShort(
+                        next.getId(), next.getBookerId(), next.getStart(), next.getEnd())));
     }
 
     @Override
@@ -128,8 +139,9 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public CommentResponseDto addComment(Long itemId, CommentCreateDto commentDto, Long userId) {
-        userService.getUserById(userId);
-        Item item = itemRepository.findById(itemId)
+        User author = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
+        itemRepository.findById(itemId)
                 .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
 
         LocalDateTime now = LocalDateTime.now();
@@ -140,39 +152,36 @@ public class ItemServiceImpl implements ItemService {
             throw new ValidationException("User has not completed a booking for this item");
         }
 
-        Comment comment = new Comment();
-        comment.setText(commentDto.getText());
-        comment.setItemId(itemId);
-        comment.setAuthorId(userId);
-        comment.setCreated(LocalDateTime.now());
-
+        Comment comment = CommentMapper.toComment(commentDto, itemId, userId);
         comment = commentRepository.save(comment);
 
-        User author = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
-
-        return new CommentResponseDto(
-                comment.getId(),
-                comment.getText(),
-                comment.getAuthorId(),
-                author.getName(),
-                comment.getCreated()
-        );
+        return CommentMapper.toCommentResponseDto(comment, author.getName());
     }
 
-    private List<CommentResponseDto> getCommentsForItem(Long itemId) {
-        return commentRepository.findByItemIdOrderByCreatedDesc(itemId).stream()
-                .map(comment -> {
-                    User author = userRepository.findById(comment.getAuthorId())
-                            .orElseThrow(() -> new NotFoundException("User not found with id: " + comment.getAuthorId()));
-                    return new CommentResponseDto(
-                            comment.getId(),
-                            comment.getText(),
-                            comment.getAuthorId(),
-                            author.getName(),
-                            comment.getCreated()
-                    );
-                })
+    private List<CommentResponseDto> toCommentResponseDtos(List<Comment> comments) {
+        if (comments.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, String> authorNames = resolveAuthorNames(comments);
+        return comments.stream()
+                .map(comment -> CommentMapper.toCommentResponseDto(comment, authorNames.get(comment.getAuthorId())))
                 .toList();
+    }
+
+    private Map<Long, List<CommentResponseDto>> groupCommentsByItem(List<Comment> comments) {
+        if (comments.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, String> authorNames = resolveAuthorNames(comments);
+        return comments.stream()
+                .collect(Collectors.groupingBy(Comment::getItemId,
+                        Collectors.mapping(comment -> CommentMapper.toCommentResponseDto(
+                                comment, authorNames.get(comment.getAuthorId())), Collectors.toList())));
+    }
+
+    private Map<Long, String> resolveAuthorNames(List<Comment> comments) {
+        List<Long> authorIds = comments.stream().map(Comment::getAuthorId).distinct().toList();
+        return userRepository.findAllById(authorIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getName));
     }
 }
